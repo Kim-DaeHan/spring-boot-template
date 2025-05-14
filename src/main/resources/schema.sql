@@ -1,0 +1,42 @@
+-- 이미 존재하는 테이블 삭제
+DROP TABLE IF EXISTS rentals;
+DROP TABLE IF EXISTS book_categories;
+DROP TABLE IF EXISTS books;
+DROP TABLE IF EXISTS categories;
+
+-- 책 테이블
+CREATE TABLE IF NOT EXISTS books (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title VARCHAR(255) NOT NULL,
+    author VARCHAR(255) NOT NULL,
+    status VARCHAR(20) DEFAULT 'AVAILABLE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 카테고리 테이블
+CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(50) NOT NULL UNIQUE
+);
+
+-- 책-카테고리 관계 테이블
+CREATE TABLE IF NOT EXISTS book_categories (
+    book_id INTEGER,
+    category_id INTEGER,
+    PRIMARY KEY (book_id, category_id),
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+);
+
+-- 대여 테이블
+CREATE TABLE IF NOT EXISTS rentals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_id INTEGER NOT NULL,
+    due_date DATE NOT NULL,
+    returned_date DATE,
+    status VARCHAR(20) DEFAULT 'BORROWED',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+); 

@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: library-api
+
+  # SQLite3 DB 설정
+  datasource:
+    url: jdbc:sqlite:./library.db
+    driver-class-name: org.sqlite.JDBC
+    username: admin
+    password: admin
+
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+    defer-datasource-initialization: true
+
+  # SQL 초기화 설정
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+
+# 서버 포트
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+# 로그 레벨
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    com.example.libraryapi: DEBUG
+
+# Swagger OpenAPI 설정
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    disable-swagger-default-url: true
+    display-request-duration: true
+  packages-to-scan: com.example.libraryapi.controller
