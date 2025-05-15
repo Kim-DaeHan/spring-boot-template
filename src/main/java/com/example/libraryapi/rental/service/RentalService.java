@@ -3,6 +3,8 @@ package com.example.libraryapi.rental.service;
 import com.example.libraryapi.book.entity.Book;
 import com.example.libraryapi.book.entity.BookStatus;
 import com.example.libraryapi.book.repository.BookRepository;
+import com.example.libraryapi.exception.InvalidRequestException;
+import com.example.libraryapi.exception.ResourceInUseException;
 import com.example.libraryapi.exception.ResourceNotFoundException;
 import com.example.libraryapi.rental.dto.RentalRequestDto;
 import com.example.libraryapi.rental.dto.RentalResponseDto;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,21 +34,21 @@ public class RentalService {
         Book book = bookRepository.findById(request.bookId())
                 .orElseThrow(() -> new ResourceNotFoundException("도서를 찾을 수 없습니다. ID: " + request.bookId()));
         
+        // 이미 대여중인지 확인 (BORROWED와 OVERDUE 상태 모두 확인)
+        rentalRepository.findActiveRentalByBookId(request.bookId())
+        .ifPresent(rental -> {
+            throw new ResourceInUseException("이미 대여중인 도서입니다. 현재 상태: " + rental.getStatus());
+        });
+
         // 도서 상태 확인
         if (book.getStatus() != BookStatus.AVAILABLE) {
-            throw new IllegalArgumentException("도서를 대여할 수 없습니다. 현재 상태: " + book.getStatus());
+            throw new InvalidRequestException("도서를 대여할 수 없습니다. 현재 상태: " + book.getStatus());
         }
-        
-        // 이미 대여중인지 확인
-        rentalRepository.findActiveRentalByBookId(request.bookId())
-                .ifPresent(rental -> {
-                    throw new IllegalArgumentException("이미 대여중인 도서입니다.");
-                });
         
         // 대여 기간 확인
-        if (request.dueDate().isBefore(LocalDate.now())) {
-            throw new IllegalArgumentException("반납 예정일은 현재 날짜 이후로 설정해야 합니다.");
-        }
+        // if (request.dueDate().isBefore(LocalDate.now())) {
+        //     throw new InvalidRequestException("반납 예정일은 현재 날짜 이후로 설정해야 합니다.");
+        // }
         
         // 도서 상태 변경
         book.setStatus(BookStatus.UNAVAILABLE);
@@ -62,13 +65,13 @@ public class RentalService {
     }
 
     @Transactional
-    public RentalResponseDto returnBook(Long rentalId) {
+    public RentalResponseDto returnBook(Integer rentalId) {
         Rental rental = rentalRepository.findById(rentalId)
                 .orElseThrow(() -> new ResourceNotFoundException("대여 정보를 찾을 수 없습니다. ID: " + rentalId));
         
         // 이미 반납된 도서인지 확인
         if (rental.getStatus() == RentalStatus.RETURNED) {
-            throw new IllegalArgumentException("이미 반납된 도서입니다.");
+            throw new InvalidRequestException("이미 반납된 도서입니다.");
         }
         
         // 도서 반납 처리
@@ -88,20 +91,29 @@ public class RentalService {
     }
 
     @Transactional(readOnly = true)
-    public RentalResponseDto getRentalById(Long id) {
+    public RentalResponseDto getRentalById(Integer id) {
         Rental rental = rentalRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("대여 정보를 찾을 수 없습니다. ID: " + id));
         return rentalMapper.toResponse(rental);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<RentalResponseDto> getOverdueRentals() {
-        List<Rental> overdueRentals = rentalRepository.findOverdueRentals(LocalDate.now());
+        LocalDate now = LocalDate.now();
+        List<Rental> overdueRentals = rentalRepository.findOverdueRentals(now);
+        
+        // 아직 OVERDUE 상태가 아닌 항목만 필터링하여 업데이트
+        List<Rental> rentalsToUpdate = overdueRentals.stream()
+                .filter(rental -> rental.getStatus() != RentalStatus.OVERDUE)
+                .collect(Collectors.toList());
         
         // 연체 상태 업데이트
-        overdueRentals.forEach(Rental::updateOverdueStatus);
-        rentalRepository.saveAll(overdueRentals);
+        if (!rentalsToUpdate.isEmpty()) {
+            rentalsToUpdate.forEach(Rental::updateOverdueStatus);
+            rentalRepository.saveAll(rentalsToUpdate);
+        }
         
+        // OVERDUE 상태인 항목을 포함하여 모든 연체 항목 조회
         return rentalMapper.toResponseList(overdueRentals);
     }
 } 

@@ -6,6 +6,7 @@ import com.example.libraryapi.book.dto.BookResponseDto;
 import com.example.libraryapi.book.dto.BookStatusUpdateDto;
 import com.example.libraryapi.book.service.BookService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,24 +37,32 @@ public class BookController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "도서 상세 조회", description = "단일 도서의 상세 정보를 조회합니다.")
-    public ResponseEntity<BookResponseDto> getBookById(@PathVariable Long id) {
+    @Operation(summary = "도서 조회", description = "단일 도서 정보를 조회합니다.")
+    public ResponseEntity<BookResponseDto> getBookById(
+            @Parameter(description = "조회할 도서 ID", example = "1") 
+            @PathVariable Integer id) {
         return ResponseEntity.ok(bookService.getBookById(id));
     }
 
     @GetMapping("/search")
-    @Operation(summary = "도서 검색", description = "조건에 맞는 도서를 검색합니다.")
+    @Operation(summary = "도서 검색", description = "제목, 저자, 카테고리 등 조건에 맞는 도서를 검색합니다. 여러 조건을 동시에 적용할 수 있습니다.")
     public ResponseEntity<List<BookResponseDto>> searchBooks(
+            @Parameter(description = "저자 이름으로 검색 (부분 일치)", example = "J.K. 롤링") 
             @RequestParam(required = false) String author,
+            
+            @Parameter(description = "도서 제목으로 검색 (부분 일치)", example = "해리포터") 
             @RequestParam(required = false) String title,
+            
+            @Parameter(description = "카테고리 이름으로 검색 (정확히 일치)", example = "소설") 
             @RequestParam(required = false) String category) {
         return ResponseEntity.ok(bookService.searchBooks(author, title, category));
     }
 
     @PatchMapping("/{id}/status")
-    @Operation(summary = "도서 상태 변경", description = "도서의 상태를 변경합니다 (available/unavailable).")
+    @Operation(summary = "도서 상태 변경", description = "도서의 상태(대여 가능/불가능)를 변경합니다.")
     public ResponseEntity<BookResponseDto> updateBookStatus(
-            @PathVariable Long id,
+            @Parameter(description = "상태를 변경할 도서 ID", example = "1") 
+            @PathVariable Integer id,
             @Valid @RequestBody BookStatusUpdateDto request) {
         return ResponseEntity.ok(bookService.updateBookStatus(id, request));
     }
@@ -61,7 +70,8 @@ public class BookController {
     @PutMapping("/{id}/categories")
     @Operation(summary = "도서 카테고리 수정", description = "도서의 카테고리 목록을 교체합니다.")
     public ResponseEntity<BookResponseDto> updateBookCategories(
-            @PathVariable Long id,
+            @Parameter(description = "카테고리를 수정할 도서 ID", example = "1") 
+            @PathVariable Integer id,
             @Valid @RequestBody BookCategoryUpdateDto request) {
         return ResponseEntity.ok(bookService.updateBookCategories(id, request));
     }

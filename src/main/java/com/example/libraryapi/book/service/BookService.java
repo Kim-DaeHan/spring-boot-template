@@ -9,7 +9,9 @@ import com.example.libraryapi.book.mapper.BookMapper;
 import com.example.libraryapi.book.repository.BookRepository;
 import com.example.libraryapi.category.entity.Category;
 import com.example.libraryapi.category.repository.CategoryRepository;
+import com.example.libraryapi.exception.ResourceInUseException;
 import com.example.libraryapi.exception.ResourceNotFoundException;
+import com.example.libraryapi.rental.repository.RentalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,7 @@ public class BookService {
 
     private final BookRepository bookRepository;
     private final CategoryRepository categoryRepository;
+    private final RentalRepository rentalRepository;
     private final BookMapper bookMapper;
 
     @Transactional
@@ -31,7 +34,7 @@ public class BookService {
         // 카테고리 조회
         Set<Category> categories = request.categoryIds().stream()
                 .map(id -> categoryRepository.findById(id)
-                        .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id)))
+                        .orElseThrow(() -> new ResourceNotFoundException("카테고리를 찾을 수 없습니다. ID: " + id)))
                 .collect(Collectors.toSet());
 
         // 도서 생성
@@ -55,30 +58,33 @@ public class BookService {
     }
 
     @Transactional(readOnly = true)
-    public BookResponseDto getBookById(Long id) {
+    public BookResponseDto getBookById(Integer id) {
         Book book = bookRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("도서를 찾을 수 없습니다. ID: " + id));
         return bookMapper.toResponse(book);
     }
 
     @Transactional(readOnly = true)
     public List<BookResponseDto> searchBooks(String author, String title, String category) {
-        if (author != null && !author.isBlank()) {
-            return bookMapper.toResponseList(bookRepository.findByAuthorContaining(author));
-        } else if (title != null && !title.isBlank()) {
-            return bookMapper.toResponseList(bookRepository.findByTitleContaining(title));
-        } else if (category != null && !category.isBlank()) {
-            return bookMapper.toResponseList(bookRepository.findByCategoryName(category));
-        }
+        // 빈 문자열인 경우 null로 변환하여 처리
+        String authorParam = (author != null && !author.isBlank()) ? author : null;
+        String titleParam = (title != null && !title.isBlank()) ? title : null;
+        String categoryParam = (category != null && !category.isBlank()) ? category : null;
         
-        // 검색 조건이 없으면 전체 도서 반환
-        return getAllBooks();
+        // 하나의 쿼리로 모든 필터 적용
+        List<Book> results = bookRepository.findByFilters(categoryParam, titleParam, authorParam);
+        return bookMapper.toResponseList(results);
     }
 
     @Transactional
-    public BookResponseDto updateBookStatus(Long id, BookStatusUpdateDto request) {
+    public BookResponseDto updateBookStatus(Integer id, BookStatusUpdateDto request) {
         Book book = bookRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("도서를 찾을 수 없습니다. ID: " + id));
+        
+        // 대여 중인 책인지 확인
+        rentalRepository.findActiveRentalByBookId(id).ifPresent(rental -> {
+            throw new ResourceInUseException("대여 중인 책의 상태는 변경할 수 없습니다. 책 ID: " + id);
+        });
         
         book.setStatus(request.status());
         
@@ -86,14 +92,14 @@ public class BookService {
     }
 
     @Transactional
-    public BookResponseDto updateBookCategories(Long id, BookCategoryUpdateDto request) {
+    public BookResponseDto updateBookCategories(Integer id, BookCategoryUpdateDto request) {
         Book book = bookRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("도서를 찾을 수 없습니다. ID: " + id));
         
         // 카테고리 조회
         Set<Category> categories = request.categoryIds().stream()
                 .map(categoryId -> categoryRepository.findById(categoryId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId)))
+                        .orElseThrow(() -> new ResourceNotFoundException("카테고리를 찾을 수 없습니다. ID: " + categoryId)))
                 .collect(Collectors.toSet());
         
         // 카테고리 업데이트

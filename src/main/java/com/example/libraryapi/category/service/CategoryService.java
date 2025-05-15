@@ -8,6 +8,7 @@ import com.example.libraryapi.category.dto.CategoryResponseDto;
 import com.example.libraryapi.category.entity.Category;
 import com.example.libraryapi.category.mapper.CategoryMapper;
 import com.example.libraryapi.category.repository.CategoryRepository;
+import com.example.libraryapi.exception.DuplicateResourceException;
 import com.example.libraryapi.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,7 @@ public class CategoryService {
     public CategoryResponseDto createCategory(CategoryRequestDto request) {
         // 중복 검사
         if (categoryRepository.existsByName(request.name())) {
-            throw new IllegalArgumentException("Category with name: " + request.name() + " already exists");
+            throw new DuplicateResourceException("카테고리 이름이 이미 존재합니다: " + request.name());
         }
         
         // 카테고리 생성
@@ -45,17 +46,19 @@ public class CategoryService {
     }
 
     @Transactional(readOnly = true)
-    public CategoryResponseDto getCategoryById(Long id) {
+    public CategoryResponseDto getCategoryById(Integer id) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("카테고리를 찾을 수 없습니다. ID: " + id));
         return categoryMapper.toResponse(category);
     }
 
     @Transactional(readOnly = true)
-    public List<BookResponseDto> getBooksByCategory(Long categoryId) {
+    public List<BookResponseDto> getBooksByCategory(Integer categoryId) {
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
+                .orElseThrow(() -> new ResourceNotFoundException("카테고리를 찾을 수 없습니다. ID: " + categoryId));
         
-        return bookMapper.toResponseList(bookRepository.findByCategories(category));
+        // Detach entities from the session to avoid lazy loading issues
+        List<com.example.libraryapi.book.entity.Book> books = bookRepository.findByCategories(category);
+        return bookMapper.toResponseList(books);
     }
 } 

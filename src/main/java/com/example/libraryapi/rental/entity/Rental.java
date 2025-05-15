@@ -4,15 +4,17 @@ import com.example.libraryapi.book.entity.Book;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "rentals")
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,7 +22,7 @@ public class Rental {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "book_id", nullable = false)
@@ -61,12 +63,27 @@ public class Rental {
         this.status = RentalStatus.RETURNED;
     }
     
+    /**
+     * 현재 대여가 연체 상태인지 확인합니다.
+     * 반납 기한이 지났고, 아직 반납되지 않은 상태면 연체로 간주합니다.
+     * 
+     * @return 연체 여부
+     */
     public boolean isOverdue() {
-        return LocalDate.now().isAfter(dueDate) && status == RentalStatus.BORROWED;
+        // 반납 완료된 항목은 연체로 간주하지 않음
+        if (status == RentalStatus.RETURNED) {
+            return false;
+        }
+        
+        // 반납 기한이 지났으면 연체
+        return LocalDate.now().isAfter(dueDate);
     }
     
+    /**
+     * 연체 상태인 경우 상태를 OVERDUE로 업데이트합니다.
+     */
     public void updateOverdueStatus() {
-        if (isOverdue()) {
+        if (isOverdue() && status != RentalStatus.OVERDUE) {
             this.status = RentalStatus.OVERDUE;
         }
     }

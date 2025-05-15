@@ -122,3 +122,52 @@ SQLite3 데이터베이스를 사용합니다. 애플리케이션 실행 시 `li
   - status: 상태 (BORROWED, RETURNED, OVERDUE)
   - createdAt: 생성일
   - updatedAt: 수정일
+
+## 예외 처리 구조
+
+이 프로젝트는 다음과 같은 계층적 예외 처리 구조를 사용합니다:
+
+### 예외 클래스
+
+- `BusinessException`: 모든 비즈니스 로직 예외의 기본 클래스
+  - `ResourceNotFoundException`: 요청한 리소스를 찾을 수 없을 때 발생 (HTTP 404)
+  - `InvalidRequestException`: 잘못된 요청 형식이나 값을 제공했을 때 발생 (HTTP 400)
+  - `DuplicateResourceException`: 이미 존재하는 리소스를 생성하려 할 때 발생 (HTTP 409)
+  - `ResourceInUseException`: 사용 중인 리소스를 조작하려 할 때 발생 (HTTP 409)
+
+### 글로벌 예외 처리
+
+`GlobalExceptionHandler`는 다음과 같은 예외 유형을 처리합니다:
+
+1. `BusinessException`: 모든 비즈니스 예외를 적절한 HTTP 상태 코드와 함께 처리
+2. `MethodArgumentNotValidException`: 유효성 검증 오류 처리
+3. `HttpMessageNotReadableException`: 요청 바디 파싱 오류 (특히 Enum 값 오류)
+4. `RuntimeException`: 기타 런타임 예외 처리
+5. `Exception`: 예상치 못한 일반 예외 처리
+
+### 응답 형식
+
+모든 오류는 다음 형식의 JSON으로 응답합니다:
+
+```json
+{
+  "status": 400,
+  "message": "오류 메시지",
+  "timestamp": "2023-05-01T12:34:56",
+  "errors": {
+    // 필드 오류가 있는 경우에만 포함
+    "필드명": "오류 메시지"
+  }
+}
+```
+
+### 예외 사용 지침
+
+서비스 로직에서 예외를 발생시킬 때는 다음 지침을 따릅니다:
+
+1. 리소스를 찾을 수 없는 경우 `ResourceNotFoundException` 사용
+2. 잘못된 입력 값 검증에는 `InvalidRequestException` 사용
+3. 중복 데이터 확인 시 `DuplicateResourceException` 사용
+4. 대여 중인 책 등 사용 중인 리소스 조작 시 `ResourceInUseException` 사용
+
+이러한 구조화된 예외 처리를 통해 API는 일관된 오류 응답 형식을 제공하고, 클라이언트에게 더 명확한 오류 정보를 전달합니다.

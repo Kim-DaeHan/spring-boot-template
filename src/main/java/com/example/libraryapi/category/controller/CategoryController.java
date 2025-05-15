@@ -5,6 +5,7 @@ import com.example.libraryapi.category.dto.CategoryRequestDto;
 import com.example.libraryapi.category.dto.CategoryResponseDto;
 import com.example.libraryapi.category.service.CategoryService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,13 +37,17 @@ public class CategoryController {
 
     @GetMapping("/{id}")
     @Operation(summary = "카테고리 조회", description = "단일 카테고리 정보를 조회합니다.")
-    public ResponseEntity<CategoryResponseDto> getCategoryById(@PathVariable Long id) {
+    public ResponseEntity<CategoryResponseDto> getCategoryById(
+            @Parameter(description = "조회할 카테고리 ID", example = "1") 
+            @PathVariable Integer id) {
         return ResponseEntity.ok(categoryService.getCategoryById(id));
     }
 
     @GetMapping("/{id}/books")
     @Operation(summary = "카테고리별 도서 조회", description = "특정 카테고리에 속한 도서 목록을 조회합니다.")
-    public ResponseEntity<List<BookResponseDto>> getBooksByCategory(@PathVariable Long id) {
+    public ResponseEntity<List<BookResponseDto>> getBooksByCategory(
+            @Parameter(description = "도서를 조회할 카테고리 ID", example = "1") 
+            @PathVariable Integer id) {
         return ResponseEntity.ok(categoryService.getBooksByCategory(id));
     }
 } 
