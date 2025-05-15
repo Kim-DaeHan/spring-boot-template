@@ -6,7 +6,7 @@
 
 - Spring Boot 3.4.5
 - Spring Data JPA
-- SQLite3 (데이터베이스)
+- SQLite3
 - Swagger UI (springdoc-openapi)
 - Lombok
 - JUnit 5 (테스트)
@@ -25,54 +25,6 @@
   - 대여 기한 관리
   - 연체 도서 자동 상태 변경
   - 연체 도서 조회
-
-## 프로젝트 구조
-
-프로젝트는 모듈별로 구성되어 있으며, 각 모듈 내에 관련 기능들을 그룹화하였습니다:
-
-```
-src/main/java/com/example/libraryapi
-├── book/               # 도서 관련 모듈
-│   ├── controller/     # 도서 컨트롤러
-│   ├── dto/            # 도서 DTO (record 클래스)
-│   ├── entity/         # 도서 엔티티
-│   │   ├── Book.java
-│   │   └── BookStatus.java (AVAILABLE, UNAVAILABLE)
-│   ├── mapper/         # 도서 매퍼
-│   ├── repository/     # 도서 리포지토리
-│   └── service/        # 도서 서비스
-│
-├── category/           # 카테고리 관련 모듈
-│   ├── controller/     # 카테고리 컨트롤러
-│   ├── dto/            # 카테고리 DTO (record 클래스)
-│   ├── entity/         # 카테고리 엔티티
-│   │   └── Category.java
-│   ├── mapper/         # 카테고리 매퍼
-│   ├── repository/     # 카테고리 리포지토리
-│   └── service/        # 카테고리 서비스
-│
-├── rental/             # 대여 관련 모듈
-│   ├── controller/     # 대여 컨트롤러
-│   ├── dto/            # 대여 DTO (record 클래스)
-│   ├── entity/         # 대여 엔티티
-│   │   ├── Rental.java
-│   │   └── RentalStatus.java (BORROWED, RETURNED, OVERDUE)
-│   ├── mapper/         # 대여 매퍼
-│   ├── repository/     # 대여 리포지토리
-│   └── service/        # 대여 서비스
-│
-├── config/             # 전역 설정
-│   └── SwaggerConfig.java
-├── exception/          # 전역 예외 처리
-│   ├── BusinessException.java
-│   ├── DuplicateResourceException.java
-│   ├── ErrorResponse.java
-│   ├── GlobalExceptionHandler.java
-│   ├── InvalidRequestException.java
-│   ├── ResourceInUseException.java
-│   └── ResourceNotFoundException.java
-└── LibraryApiApplication.java  # 애플리케이션 시작점
-```
 
 ## API 엔드포인트
 
@@ -276,15 +228,3 @@ curl -X POST http://localhost:8080/api/rentals/borrow \
 ```bash
 curl -X PUT http://localhost:8080/api/rentals/1/return
 ```
-
-## 기여 방법
-
-1. 이 저장소를 포크합니다
-2. 새 기능 브랜치를 생성합니다 (`git checkout -b feature/amazing-feature`)
-3. 변경 사항을 커밋합니다 (`git commit -m 'Add some amazing feature'`)
-4. 브랜치에 푸시합니다 (`git push origin feature/amazing-feature`)
-5. Pull Request를 생성합니다
-
-## 라이센스
-
-이 프로젝트는 MIT 라이센스 하에 배포됩니다.
