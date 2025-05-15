@@ -6,18 +6,25 @@
 
 - Spring Boot 3.4.5
 - Spring Data JPA
-- SQLite3
+- SQLite3 (데이터베이스)
 - Swagger UI (springdoc-openapi)
 - Lombok
 - JUnit 5 (테스트)
 
 ## 주요 기능
 
-- 도서 등록, 조회, 검색, 상태 변경
-- 카테고리 등록, 조회
-- 카테고리별 도서 조회
-- 도서 대여 및 반납
-- 연체 도서 관리
+- 도서 관리
+  - 도서 등록, 조회, 검색, 상태 변경
+  - 카테고리별 도서 분류
+  - 다중 카테고리 지원
+- 카테고리 관리
+  - 카테고리 등록, 조회
+  - 카테고리별 도서 조회
+- 대여 관리
+  - 도서 대여 및 반납 처리
+  - 대여 기한 관리
+  - 연체 도서 자동 상태 변경
+  - 연체 도서 조회
 
 ## 프로젝트 구조
 
@@ -29,6 +36,8 @@ src/main/java/com/example/libraryapi
 │   ├── controller/     # 도서 컨트롤러
 │   ├── dto/            # 도서 DTO (record 클래스)
 │   ├── entity/         # 도서 엔티티
+│   │   ├── Book.java
+│   │   └── BookStatus.java (AVAILABLE, UNAVAILABLE)
 │   ├── mapper/         # 도서 매퍼
 │   ├── repository/     # 도서 리포지토리
 │   └── service/        # 도서 서비스
@@ -37,6 +46,7 @@ src/main/java/com/example/libraryapi
 │   ├── controller/     # 카테고리 컨트롤러
 │   ├── dto/            # 카테고리 DTO (record 클래스)
 │   ├── entity/         # 카테고리 엔티티
+│   │   └── Category.java
 │   ├── mapper/         # 카테고리 매퍼
 │   ├── repository/     # 카테고리 리포지토리
 │   └── service/        # 카테고리 서비스
@@ -45,12 +55,22 @@ src/main/java/com/example/libraryapi
 │   ├── controller/     # 대여 컨트롤러
 │   ├── dto/            # 대여 DTO (record 클래스)
 │   ├── entity/         # 대여 엔티티
+│   │   ├── Rental.java
+│   │   └── RentalStatus.java (BORROWED, RETURNED, OVERDUE)
 │   ├── mapper/         # 대여 매퍼
 │   ├── repository/     # 대여 리포지토리
 │   └── service/        # 대여 서비스
 │
 ├── config/             # 전역 설정
+│   └── SwaggerConfig.java
 ├── exception/          # 전역 예외 처리
+│   ├── BusinessException.java
+│   ├── DuplicateResourceException.java
+│   ├── ErrorResponse.java
+│   ├── GlobalExceptionHandler.java
+│   ├── InvalidRequestException.java
+│   ├── ResourceInUseException.java
+│   └── ResourceNotFoundException.java
 └── LibraryApiApplication.java  # 애플리케이션 시작점
 ```
 
@@ -82,42 +102,79 @@ src/main/java/com/example/libraryapi
 
 ## 실행 방법
 
+### 필수 조건
+
+- Java 17 이상
+- Gradle 7.x 이상
+
+### 로컬 실행
+
 ```bash
+# 프로젝트 클론
+git clone https://github.com/yourusername/library-api.git
+cd library-api
+
+# 애플리케이션 빌드
+./gradlew build
+
+# 애플리케이션 실행
 ./gradlew bootRun
 ```
 
+애플리케이션은 기본적으로 `http://localhost:8080`에서 실행됩니다.
+
 ## API 문서 접근 방법
 
+Swagger UI를 통해 API 문서 및 테스트 인터페이스에 접근할 수 있습니다.
+
 ```
-http://localhost:8080/api/swagger-ui.html
+http://localhost:8080/swagger-ui
+```
+
+API 명세는 다음 주소에서 JSON 형식으로 확인할 수 있습니다.
+
+```
+http://localhost:8080/api-docs
 ```
 
 ## 데이터베이스
 
-SQLite3 데이터베이스를 사용합니다. 애플리케이션 실행 시 `library.db` 파일이 생성되며, 초기 데이터는 `data.sql` 파일을 통해 자동으로 로드됩니다.
+SQLite3 데이터베이스를 사용합니다. 애플리케이션 실행 시 `library.db` 파일이 루트 디렉토리에 생성되며, 초기 스키마와 데이터는 다음 파일들을 통해 자동으로 로드됩니다:
+
+- `src/main/resources/schema.sql`: 테이블 구조 정의
+- `src/main/resources/data.sql`: 초기 샘플 데이터
+
+### 데이터 모델
+
+애플리케이션은 다음과 같은 테이블 구조를 사용합니다:
+
+- `books`: 도서 정보
+- `categories`: 카테고리 정보
+- `book_categories`: 도서-카테고리 다대다 관계
+- `rentals`: 대여 정보
 
 ## 엔티티 구조
 
 - **Book**: 도서 정보
 
-  - id: 고유 식별자
-  - title: 제목
-  - author: 지은이
+  - id: 고유 식별자 (자동 증가)
+  - title: 제목 (NOT NULL)
+  - author: 지은이 (NOT NULL)
   - status: 상태 (AVAILABLE, UNAVAILABLE)
-  - categories: 카테고리 목록
+  - categories: 카테고리 목록 (다대다 관계)
   - createdAt: 생성일
   - updatedAt: 수정일
 
 - **Category**: 카테고리 정보
 
-  - id: 고유 식별자
-  - name: 카테고리명
-  - books: 해당 카테고리에 속한 도서 목록
+  - id: 고유 식별자 (자동 증가)
+  - name: 카테고리명 (NOT NULL, UNIQUE)
+  - books: 해당 카테고리에 속한 도서 목록 (다대다 관계)
 
 - **Rental**: 대여 정보
-  - id: 고유 식별자
-  - book: 대여한 도서
-  - dueDate: 반납 예정일
+  - id: 고유 식별자 (자동 증가)
+  - book: 대여한 도서 (다대일 관계)
+  - dueDate: 반납 예정일 (NOT NULL)
   - returnedDate: 실제 반납일
   - status: 상태 (BORROWED, RETURNED, OVERDUE)
   - createdAt: 생성일
@@ -125,7 +182,7 @@ SQLite3 데이터베이스를 사용합니다. 애플리케이션 실행 시 `li
 
 ## 예외 처리 구조
 
-이 프로젝트는 다음과 같은 계층적 예외 처리 구조를 사용합니다:
+이 프로젝트는 계층적인 예외 처리 구조를 사용합니다:
 
 ### 예외 클래스
 
@@ -161,13 +218,73 @@ SQLite3 데이터베이스를 사용합니다. 애플리케이션 실행 시 `li
 }
 ```
 
-### 예외 사용 지침
+## 설정 정보
 
-서비스 로직에서 예외를 발생시킬 때는 다음 지침을 따릅니다:
+애플리케이션 설정은 `application.yml` 파일에서 관리됩니다:
 
-1. 리소스를 찾을 수 없는 경우 `ResourceNotFoundException` 사용
-2. 잘못된 입력 값 검증에는 `InvalidRequestException` 사용
-3. 중복 데이터 확인 시 `DuplicateResourceException` 사용
-4. 대여 중인 책 등 사용 중인 리소스 조작 시 `ResourceInUseException` 사용
+```yaml
+spring:
+  datasource:
+    url: jdbc:sqlite:./library.db
+    driver-class-name: org.sqlite.JDBC
 
-이러한 구조화된 예외 처리를 통해 API는 일관된 오류 응답 형식을 제공하고, 클라이언트에게 더 명확한 오류 정보를 전달합니다.
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+
+server:
+  port: 8080
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+  api-docs:
+    path: /api-docs
+```
+
+## 사용법 예시
+
+### 도서 목록 조회
+
+```bash
+curl -X GET http://localhost:8080/api/books
+```
+
+### 카테고리별 도서 조회
+
+```bash
+curl -X GET http://localhost:8080/api/categories/1/books
+```
+
+### 도서 대여하기
+
+```bash
+curl -X POST http://localhost:8080/api/rentals/borrow \
+  -H "Content-Type: application/json" \
+  -d '{"bookId": 1, "dueDate": "2023-12-31"}'
+```
+
+### 도서 반납하기
+
+```bash
+curl -X PUT http://localhost:8080/api/rentals/1/return
+```
+
+## 기여 방법
+
+1. 이 저장소를 포크합니다
+2. 새 기능 브랜치를 생성합니다 (`git checkout -b feature/amazing-feature`)
+3. 변경 사항을 커밋합니다 (`git commit -m 'Add some amazing feature'`)
+4. 브랜치에 푸시합니다 (`git push origin feature/amazing-feature`)
+5. Pull Request를 생성합니다
+
+## 라이센스
+
+이 프로젝트는 MIT 라이센스 하에 배포됩니다.
