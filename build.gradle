@@ -40,6 +40,11 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    
+    // JUnit 5 Platform Suite - 필요한 의존성만 사용
+    // testImplementation 'org.junit.platform:junit-platform-suite'
+    testImplementation 'org.junit.platform:junit-platform-suite-api'
+    testImplementation 'org.junit.platform:junit-platform-suite-engine'
 }
 
 tasks.named('test') {
