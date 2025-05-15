@@ -32,7 +32,7 @@ spring:
 server:
   port: 8080
   servlet:
-    context-path: /api
+    context-path: /
 
 # 로그 레벨
 logging:
@@ -44,11 +44,7 @@ logging:
 
 # Swagger OpenAPI 설정
 springdoc:
+  swagger-ui:
+    path: /swagger-ui
   api-docs:
     path: /api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    operationsSorter: method
-    disable-swagger-default-url: true
-    display-request-duration: true
-  packages-to-scan: com.example.libraryapi.controller
