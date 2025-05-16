@@ -5,7 +5,6 @@ import com.example.libraryapi.book.dto.BookRequestDto;
 import com.example.libraryapi.book.dto.BookResponseDto;
 import com.example.libraryapi.book.dto.BookStatusUpdateDto;
 import com.example.libraryapi.book.entity.Book;
-import com.example.libraryapi.book.mapper.BookMapper;
 import com.example.libraryapi.book.repository.BookRepository;
 import com.example.libraryapi.category.entity.Category;
 import com.example.libraryapi.category.repository.CategoryRepository;
@@ -20,6 +19,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * 도서 관련 비즈니스 로직을 처리하는 서비스
+ */
 @Service
 @RequiredArgsConstructor
 public class BookService {
@@ -27,15 +29,14 @@ public class BookService {
     private final BookRepository bookRepository;
     private final CategoryRepository categoryRepository;
     private final RentalRepository rentalRepository;
-    private final BookMapper bookMapper;
 
+    /**
+     * 새로운 도서를 생성합니다.
+     */
     @Transactional
     public BookResponseDto createBook(BookRequestDto request) {
         // 카테고리 조회
-        Set<Category> categories = request.categoryIds().stream()
-                .map(id -> categoryRepository.findById(id)
-                        .orElseThrow(() -> new ResourceNotFoundException("카테고리를 찾을 수 없습니다. ID: " + id)))
-                .collect(Collectors.toSet());
+        Set<Category> categories = findCategoriesByIds(request.categoryIds());
 
         // 도서 생성
         Book book = Book.builder()
@@ -49,21 +50,30 @@ public class BookService {
         // 카테고리 연결
         savedBook.updateCategories(categories);
         
-        return bookMapper.toResponse(savedBook);
+        return BookResponseDto.from(savedBook);
     }
 
+    /**
+     * 모든 도서 목록을 조회합니다.
+     */
     @Transactional(readOnly = true)
     public List<BookResponseDto> getAllBooks() {
-        return bookMapper.toResponseList(bookRepository.findAll());
+        List<Book> books = bookRepository.findAll();
+        return BookResponseDto.listFrom(books);
     }
 
+    /**
+     * ID로 특정 도서를 조회합니다.
+     */
     @Transactional(readOnly = true)
     public BookResponseDto getBookById(Integer id) {
-        Book book = bookRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("도서를 찾을 수 없습니다. ID: " + id));
-        return bookMapper.toResponse(book);
+        Book book = findBookById(id);
+        return BookResponseDto.from(book);
     }
 
+    /**
+     * 도서를 검색합니다.
+     */
     @Transactional(readOnly = true)
     public List<BookResponseDto> searchBooks(String author, String title, String category) {
         // 빈 문자열인 경우 null로 변환하여 처리
@@ -73,13 +83,15 @@ public class BookService {
         
         // 하나의 쿼리로 모든 필터 적용
         List<Book> results = bookRepository.findByFilters(categoryParam, titleParam, authorParam);
-        return bookMapper.toResponseList(results);
+        return BookResponseDto.listFrom(results);
     }
 
+    /**
+     * 도서 상태를 변경합니다.
+     */
     @Transactional
     public BookResponseDto updateBookStatus(Integer id, BookStatusUpdateDto request) {
-        Book book = bookRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("도서를 찾을 수 없습니다. ID: " + id));
+        Book book = findBookById(id);
         
         // 대여 중인 책인지 확인
         rentalRepository.findActiveRentalByBookId(id).ifPresent(rental -> {
@@ -87,24 +99,43 @@ public class BookService {
         });
         
         book.setStatus(request.status());
+        Book savedBook = bookRepository.save(book);
         
-        return bookMapper.toResponse(bookRepository.save(book));
+        return BookResponseDto.from(savedBook);
     }
 
+    /**
+     * 도서의 카테고리를 변경합니다.
+     */
     @Transactional
     public BookResponseDto updateBookCategories(Integer id, BookCategoryUpdateDto request) {
-        Book book = bookRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("도서를 찾을 수 없습니다. ID: " + id));
+        Book book = findBookById(id);
         
         // 카테고리 조회
-        Set<Category> categories = request.categoryIds().stream()
-                .map(categoryId -> categoryRepository.findById(categoryId)
-                        .orElseThrow(() -> new ResourceNotFoundException("카테고리를 찾을 수 없습니다. ID: " + categoryId)))
-                .collect(Collectors.toSet());
+        Set<Category> categories = findCategoriesByIds(request.categoryIds());
         
         // 카테고리 업데이트
         book.updateCategories(categories);
+        Book savedBook = bookRepository.save(book);
         
-        return bookMapper.toResponse(bookRepository.save(book));
+        return BookResponseDto.from(savedBook);
+    }
+    
+    /**
+     * ID로 도서를 조회하는 내부 메소드
+     */
+    private Book findBookById(Integer id) {
+        return bookRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("도서를 찾을 수 없습니다. ID: " + id));
+    }
+    
+    /**
+     * ID 목록으로 카테고리를 조회하는 내부 메소드
+     */
+    private Set<Category> findCategoriesByIds(Set<Integer> categoryIds) {
+        return categoryIds.stream()
+                .map(id -> categoryRepository.findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("카테고리를 찾을 수 없습니다. ID: " + id)))
+                .collect(Collectors.toSet());
     }
 } 

@@ -7,7 +7,6 @@ import com.example.libraryapi.rental.dto.RentalResponseDto;
 import com.example.libraryapi.rental.entity.Rental;
 import com.example.libraryapi.rental.entity.RentalStatus;
 import com.example.libraryapi.rental.facade.RentalFacade;
-import com.example.libraryapi.rental.mapper.RentalMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +22,6 @@ import java.util.List;
 public class RentalService {
 
     private final RentalFacade rentalFacade;
-    private final RentalMapper rentalMapper;
 
     /**
      * 도서 대여 처리
@@ -42,7 +40,7 @@ public class RentalService {
         Rental rental = createRental(book, request.dueDate());
         Rental savedRental = rentalFacade.saveRental(rental);
         
-        return rentalMapper.toResponse(savedRental);
+        return RentalResponseDto.from(savedRental);
     }
 
     /**
@@ -72,7 +70,7 @@ public class RentalService {
         Book book = rental.getBook();
         rentalFacade.updateBookStatus(book, BookStatus.AVAILABLE);
         
-        return rentalMapper.toResponse(rentalFacade.saveRental(rental));
+        return RentalResponseDto.from(rentalFacade.saveRental(rental));
     }
 
     /**
@@ -81,7 +79,7 @@ public class RentalService {
     @Transactional(readOnly = true)
     public List<RentalResponseDto> getAllRentals() {
         List<Rental> rentals = rentalFacade.findAllRentals();
-        return rentalMapper.toResponseList(rentals);
+        return RentalResponseDto.listFrom(rentals);
     }
 
     /**
@@ -90,7 +88,7 @@ public class RentalService {
     @Transactional(readOnly = true)
     public RentalResponseDto getRentalById(Integer id) {
         Rental rental = rentalFacade.findRentalById(id);
-        return rentalMapper.toResponse(rental);
+        return RentalResponseDto.from(rental);
     }
 
     /**
@@ -109,7 +107,7 @@ public class RentalService {
             updateOverdueStatus(rentalsToUpdate);
         }
         
-        return rentalMapper.toResponseList(overdueRentals);
+        return RentalResponseDto.listFrom(overdueRentals);
     }
     
     /**
