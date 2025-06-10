@@ -7,6 +7,6 @@ import jakarta.validation.constraints.NotNull;
 @Schema(description = "도서 상태 변경 요청 DTO")
 public record BookStatusUpdateDto(
     @Schema(description = "도서 상태", example = "UNAVAILABLE")
-    @NotNull(message = "상태 값은 필수입니다")
+    @NotNull(message = "상태 값은 필수입니다...")
     BookStatus status
 ) {} 
