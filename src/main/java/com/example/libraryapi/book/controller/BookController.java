@@ -5,8 +5,13 @@ import com.example.libraryapi.book.dto.BookRequestDto;
 import com.example.libraryapi.book.dto.BookResponseDto;
 import com.example.libraryapi.book.dto.BookStatusUpdateDto;
 import com.example.libraryapi.book.service.BookService;
+import com.example.libraryapi.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +31,15 @@ public class BookController {
 
     @PostMapping
     @Operation(summary = "도서 등록", description = "신규 도서를 등록합니다. 최소 1개 이상의 카테고리가 필요합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "도서 등록 성공"),
+        @ApiResponse(responseCode = "400", 
+                     description = "잘못된 요청 (유효성 검증 실패)", 
+                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "409", 
+                     description = "중복된 도서", 
+                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<BookResponseDto> createBook(@Valid @RequestBody BookRequestDto request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(bookService.createBook(request));
     }
@@ -38,6 +52,12 @@ public class BookController {
 
     @GetMapping("/{id}")
     @Operation(summary = "도서 조회", description = "단일 도서 정보를 조회합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "도서 조회 성공"),
+        @ApiResponse(responseCode = "404", 
+                     description = "도서를 찾을 수 없음", 
+                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ResponseEntity<BookResponseDto> getBookById(
             @Parameter(description = "조회할 도서 ID", example = "1") 
             @PathVariable Integer id) {

@@ -8,10 +8,10 @@ import org.springframework.http.HttpStatus;
 public class DuplicateResourceException extends BusinessException {
 
     public DuplicateResourceException(String message) {
-        super(message, HttpStatus.CONFLICT);
+        super(message, HttpStatus.CONFLICT, ErrorCode.DUPLICATE_RESOURCE);
     }
 
     public DuplicateResourceException(String message, Throwable cause) {
-        super(message, cause, HttpStatus.CONFLICT);
+        super(message, cause, HttpStatus.CONFLICT, ErrorCode.DUPLICATE_RESOURCE);
     }
 } 

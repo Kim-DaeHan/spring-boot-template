@@ -8,6 +8,7 @@ import com.example.libraryapi.book.entity.Book;
 import com.example.libraryapi.book.repository.BookRepository;
 import com.example.libraryapi.category.entity.Category;
 import com.example.libraryapi.category.repository.CategoryRepository;
+import com.example.libraryapi.exception.MessageUtils;
 import com.example.libraryapi.exception.ResourceInUseException;
 import com.example.libraryapi.exception.ResourceNotFoundException;
 import com.example.libraryapi.rental.repository.RentalRepository;
@@ -29,6 +30,7 @@ public class BookService {
     private final BookRepository bookRepository;
     private final CategoryRepository categoryRepository;
     private final RentalRepository rentalRepository;
+    private final MessageUtils messageUtils;
 
     /**
      * 새로운 도서를 생성합니다.
@@ -95,7 +97,8 @@ public class BookService {
         
         // 대여 중인 책인지 확인
         rentalRepository.findActiveRentalByBookId(id).ifPresent(rental -> {
-            throw new ResourceInUseException("대여 중인 책의 상태는 변경할 수 없습니다. 책 ID: " + id);
+            throw new ResourceInUseException(
+                messageUtils.getMessageWithDefault("book.in.use", "Cannot change status of rented book. Book ID: " + id, id));
         });
         
         book.setStatus(request.status());
@@ -126,7 +129,8 @@ public class BookService {
      */
     private Book findBookById(Integer id) {
         return bookRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("도서를 찾을 수 없습니다. ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    messageUtils.getMessageWithDefault("book.not.found", "Book not found. ID: " + id, id)));
     }
     
     /**
@@ -135,7 +139,8 @@ public class BookService {
     private Set<Category> findCategoriesByIds(Set<Integer> categoryIds) {
         return categoryIds.stream()
                 .map(id -> categoryRepository.findById(id)
-                        .orElseThrow(() -> new ResourceNotFoundException("카테고리를 찾을 수 없습니다. ID: " + id)))
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                            messageUtils.getMessageWithDefault("category.not.found", "Category not found. ID: " + id, id))))
                 .collect(Collectors.toSet());
     }
 } 

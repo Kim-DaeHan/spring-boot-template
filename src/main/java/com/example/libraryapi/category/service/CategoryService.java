@@ -7,6 +7,7 @@ import com.example.libraryapi.category.dto.CategoryResponseDto;
 import com.example.libraryapi.category.entity.Category;
 import com.example.libraryapi.category.repository.CategoryRepository;
 import com.example.libraryapi.exception.DuplicateResourceException;
+import com.example.libraryapi.exception.MessageUtils;
 import com.example.libraryapi.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final BookRepository bookRepository;
+    private final MessageUtils messageUtils;
 
     /**
      * 새로운 카테고리를 생성합니다.
@@ -31,7 +33,8 @@ public class CategoryService {
     public CategoryResponseDto createCategory(CategoryRequestDto request) {
         // 중복 검사
         if (categoryRepository.existsByName(request.name())) {
-            throw new DuplicateResourceException("카테고리 이름이 이미 존재합니다: " + request.name());
+            throw new DuplicateResourceException(
+                messageUtils.getMessageWithDefault("category.already.exists", "Category name already exists: " + request.name(), request.name()));
         }
         
         // 카테고리 생성
@@ -78,6 +81,7 @@ public class CategoryService {
      */
     private Category findCategoryById(Integer id) {
         return categoryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("카테고리를 찾을 수 없습니다. ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    messageUtils.getMessageWithDefault("category.not.found", "Category not found. ID: " + id, id)));
     }
 } 

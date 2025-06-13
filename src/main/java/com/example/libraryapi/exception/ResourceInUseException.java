@@ -9,10 +9,10 @@ import org.springframework.http.HttpStatus;
 public class ResourceInUseException extends BusinessException {
 
     public ResourceInUseException(String message) {
-        super(message, HttpStatus.CONFLICT);
+        super(message, HttpStatus.CONFLICT, ErrorCode.RESOURCE_IN_USE);
     }
 
     public ResourceInUseException(String message, Throwable cause) {
-        super(message, cause, HttpStatus.CONFLICT);
+        super(message, cause, HttpStatus.CONFLICT, ErrorCode.RESOURCE_IN_USE);
     }
 } 

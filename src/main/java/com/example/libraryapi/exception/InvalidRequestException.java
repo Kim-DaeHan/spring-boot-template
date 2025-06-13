@@ -9,10 +9,10 @@ import org.springframework.http.HttpStatus;
 public class InvalidRequestException extends BusinessException {
 
     public InvalidRequestException(String message) {
-        super(message, HttpStatus.BAD_REQUEST);
+        super(message, HttpStatus.BAD_REQUEST, ErrorCode.INVALID_REQUEST);
     }
 
     public InvalidRequestException(String message, Throwable cause) {
-        super(message, cause, HttpStatus.BAD_REQUEST);
+        super(message, cause, HttpStatus.BAD_REQUEST, ErrorCode.INVALID_REQUEST);
     }
 } 

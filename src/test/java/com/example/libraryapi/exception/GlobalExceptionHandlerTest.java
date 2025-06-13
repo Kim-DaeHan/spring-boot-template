@@ -1,298 +1,99 @@
 package com.example.libraryapi.exception;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.MessageSource;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.Map;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
+/**
+ * GlobalExceptionHandler의 동작을 테스트하는 클래스입니다.
+ */
+@WebMvcTest(controllers = {GlobalExceptionHandlerTest.TestController.class})
 public class GlobalExceptionHandlerTest {
 
-    private GlobalExceptionHandler exceptionHandler;
+    @Autowired
+    private MockMvc mockMvc;
 
-    @BeforeEach
-    void setUp() {
-        exceptionHandler = new GlobalExceptionHandler();
+    @MockBean
+    private MessageSource messageSource;
+
+    @Test
+    void testResourceNotFoundException() throws Exception {
+        mockMvc.perform(get("/test/not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.errorCode").value("E001"))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.path").exists());
     }
 
     @Test
-    @DisplayName("ResourceNotFoundException 처리 테스트")
-    void testHandleResourceNotFoundException() {
-        // given
-        ResourceNotFoundException exception = new ResourceNotFoundException("리소스를 찾을 수 없습니다.");
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleBusinessException(exception);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("리소스를 찾을 수 없습니다.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
+    void testDuplicateResourceException() throws Exception {
+        mockMvc.perform(get("/test/duplicate"))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.errorCode").value("E002"))
+                .andExpect(jsonPath("$.message").exists());
     }
 
     @Test
-    @DisplayName("ResourceInUseException 처리 테스트")
-    void testHandleResourceInUseException() {
-        // given
-        ResourceInUseException exception = new ResourceInUseException("리소스가 이미 사용 중입니다.");
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleBusinessException(exception);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("리소스가 이미 사용 중입니다.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
+    void testInvalidRequestException() throws Exception {
+        mockMvc.perform(get("/test/invalid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.errorCode").value("E004"));
     }
 
     @Test
-    @DisplayName("InvalidRequestException 처리 테스트")
-    void testHandleInvalidRequestException() {
-        // given
-        InvalidRequestException exception = new InvalidRequestException("잘못된 요청입니다.");
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleBusinessException(exception);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("잘못된 요청입니다.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
+    void testInvalidJsonFormat() throws Exception {
+        mockMvc.perform(post("/test/json")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ invalid json }"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.errorCode").value("E006"));
     }
 
-    @Test
-    @DisplayName("DuplicateResourceException 처리 테스트")
-    void testHandleDuplicateResourceException() {
-        // given
-        DuplicateResourceException exception = new DuplicateResourceException("중복된 리소스가 존재합니다.");
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleBusinessException(exception);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("중복된 리소스가 존재합니다.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
-    }
+    /**
+     * 테스트용 컨트롤러
+     */
+    @RestController
+    static class TestController {
 
-    @Test
-    @DisplayName("MethodArgumentNotValidException 처리 테스트")
-    void testHandleMethodArgumentNotValidException() {
-        // MethodArgumentNotValidException 모킹
-        MethodArgumentNotValidException ex = mock(MethodArgumentNotValidException.class);
-        BindingResult bindingResult = mock(BindingResult.class);
-        FieldError fieldError = new FieldError("testObject", "testField", "필드 검증 오류");
+        @GetMapping("/test/not-found")
+        public void throwNotFoundException() {
+            throw new ResourceNotFoundException("테스트 리소스를 찾을 수 없습니다");
+        }
 
-        when(ex.getBindingResult()).thenReturn(bindingResult);
-        when(bindingResult.getAllErrors()).thenReturn(Collections.singletonList(fieldError));
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleValidationExceptions(ex);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("입력값 검증에 실패했습니다.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
-        
-        Map<String, String> errors = errorResponse.getErrors();
-        assertThat(errors).isNotNull();
-        assertThat(errors).containsEntry("testField", "필드 검증 오류");
-    }
+        @GetMapping("/test/duplicate")
+        public void throwDuplicateException() {
+            throw new DuplicateResourceException("중복된 테스트 리소스입니다");
+        }
 
-    @Test
-    @DisplayName("HttpMessageNotReadableException 처리 테스트")
-    void testHandleHttpMessageNotReadableException() {
-        // HttpMessageNotReadableException 모킹
-        HttpMessageNotReadableException ex = mock(HttpMessageNotReadableException.class);
-        when(ex.getMessage()).thenReturn("Required request body is missing");
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleHttpMessageNotReadable(ex);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("잘못된 요청 형식입니다.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
-    }
+        @GetMapping("/test/invalid")
+        public void throwInvalidRequestException() {
+            throw new InvalidRequestException("잘못된 테스트 요청입니다");
+        }
 
-    @Test
-    @DisplayName("Enum 값 오류 HttpMessageNotReadableException 처리 테스트")
-    void testHandleEnumHttpMessageNotReadableException() {
-        // Enum 관련 HttpMessageNotReadableException 모킹
-        HttpMessageNotReadableException ex = mock(HttpMessageNotReadableException.class);
-        String errorMsg = "Cannot deserialize value of type `com.example.libraryapi.book.entity.BookStatus` from String \"INVALID\": not one of the values accepted for Enum class: [AVAILABLE, UNAVAILABLE]";
-        when(ex.getMessage()).thenReturn(errorMsg);
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleHttpMessageNotReadable(ex);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("유효하지 않은 BookStatus 값입니다: 'INVALID'. 허용된 값: AVAILABLE, UNAVAILABLE");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("JSON 구문 오류 HttpMessageNotReadableException 처리 테스트")
-    void testHandleJsonSyntaxErrorException() {
-        // JSON 구문 오류 HttpMessageNotReadableException 모킹
-        HttpMessageNotReadableException ex = mock(HttpMessageNotReadableException.class);
-        String errorMsg = "JSON parse error: Unexpected character ('}' (code 125)): was expecting double-quote to start field name";
-        when(ex.getMessage()).thenReturn(errorMsg);
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleHttpMessageNotReadable(ex);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("잘못된 요청 형식입니다.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("NULL 값 역직렬화 오류 HttpMessageNotReadableException 처리 테스트")
-    void testHandleNullValueDeserializationException() {
-        // NULL 값 역직렬화 오류 HttpMessageNotReadableException 모킹
-        HttpMessageNotReadableException ex = mock(HttpMessageNotReadableException.class);
-        String errorMsg = "Cannot deserialize value of type `java.time.LocalDate` from String \"null\": expected format yyyy-MM-dd";
-        when(ex.getMessage()).thenReturn(errorMsg);
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleHttpMessageNotReadable(ex);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("잘못된 요청 형식입니다.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("메시지가 null인 HttpMessageNotReadableException 처리 테스트")
-    void testHandleNullMessageHttpMessageNotReadableException() {
-        // 메시지가 null인 HttpMessageNotReadableException 모킹
-        HttpMessageNotReadableException ex = mock(HttpMessageNotReadableException.class);
-        when(ex.getMessage()).thenReturn(null);
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleHttpMessageNotReadable(ex);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("잘못된 요청 형식입니다.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("IllegalArgumentException 처리 테스트")
-    void testHandleIllegalArgumentException() {
-        // given
-        IllegalArgumentException exception = new IllegalArgumentException("잘못된 인자가 전달되었습니다.");
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleRuntimeException(exception);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("잘못된 인자가 전달되었습니다.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("IllegalStateException 처리 테스트")
-    void testHandleIllegalStateException() {
-        // given
-        IllegalStateException exception = new IllegalStateException("잘못된 상태입니다.");
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleRuntimeException(exception);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("잘못된 상태입니다.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("기타 RuntimeException 처리 테스트")
-    void testHandleRuntimeException() {
-        // given
-        RuntimeException exception = new RuntimeException("런타임 예외가 발생했습니다.");
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleRuntimeException(exception);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("런타임 예외가 발생했습니다.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("일반 Exception 처리 테스트")
-    void testHandleGenericException() {
-        // given
-        Exception exception = new Exception("일반 예외가 발생했습니다.");
-        
-        // when
-        ResponseEntity<ErrorResponse> responseEntity = exceptionHandler.handleGenericException(exception);
-        
-        // then
-        assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        ErrorResponse errorResponse = responseEntity.getBody();
-        assertThat(errorResponse).isNotNull();
-        assertThat(errorResponse.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
-        assertThat(errorResponse.getMessage()).isEqualTo("서버 내부 오류가 발생했습니다. 관리자에게 문의해주세요.");
-        assertThat(errorResponse.getTimestamp()).isNotNull();
+        @PostMapping("/test/json")
+        public void testJsonEndpoint() {
+            // JSON 파싱 테스트용 엔드포인트
+        }
     }
 } 

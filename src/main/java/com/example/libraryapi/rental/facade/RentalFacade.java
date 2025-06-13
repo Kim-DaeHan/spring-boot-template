@@ -4,6 +4,7 @@ import com.example.libraryapi.book.entity.Book;
 import com.example.libraryapi.book.entity.BookStatus;
 import com.example.libraryapi.book.repository.BookRepository;
 import com.example.libraryapi.exception.InvalidRequestException;
+import com.example.libraryapi.exception.MessageUtils;
 import com.example.libraryapi.exception.ResourceInUseException;
 import com.example.libraryapi.exception.ResourceNotFoundException;
 import com.example.libraryapi.rental.entity.Rental;
@@ -27,13 +28,15 @@ public class RentalFacade {
 
     private final RentalRepository rentalRepository;
     private final BookRepository bookRepository;
+    private final MessageUtils messageUtils;
 
     /**
      * 도서 ID로 도서를 조회합니다.
      */
     public Book findBookById(Integer bookId) {
         return bookRepository.findById(bookId)
-                .orElseThrow(() -> new ResourceNotFoundException("도서를 찾을 수 없습니다. ID: " + bookId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    messageUtils.getMessageWithDefault("book.not.found", "Book not found. ID: " + bookId, bookId)));
     }
 
     /**
@@ -63,7 +66,8 @@ public class RentalFacade {
      */
     public Rental findRentalById(Integer rentalId) {
         return rentalRepository.findById(rentalId)
-                .orElseThrow(() -> new ResourceNotFoundException("대여 정보를 찾을 수 없습니다. ID: " + rentalId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    messageUtils.getMessageWithDefault("rental.not.found", "Rental information not found. ID: " + rentalId, rentalId)));
     }
 
     /**
@@ -92,7 +96,8 @@ public class RentalFacade {
      */
     public void validateBookAvailable(Book book) {
         if (book.getStatus() != BookStatus.AVAILABLE) {
-            throw new InvalidRequestException("도서를 대여할 수 없습니다. 현재 상태: " + book.getStatus());
+            throw new InvalidRequestException(
+                messageUtils.getMessageWithDefault("book.not.available", "Book cannot be rented. Current status: " + book.getStatus(), book.getStatus()));
         }
     }
 
@@ -102,7 +107,8 @@ public class RentalFacade {
     public void validateBookNotInUse(Integer bookId) {
         findActiveRentalByBookId(bookId)
             .ifPresent(rental -> {
-                throw new ResourceInUseException("이미 대여중인 도서입니다. 현재 상태: " + rental.getStatus());
+                throw new ResourceInUseException(
+                    messageUtils.getMessageWithDefault("rental.already.exists", "Book is already rented. Current status: " + rental.getStatus(), rental.getStatus()));
             });
     }
 
@@ -111,7 +117,8 @@ public class RentalFacade {
      */
     public void validateBookNotReturned(Rental rental) {
         if (rental.getStatus() == RentalStatus.RETURNED) {
-            throw new InvalidRequestException("이미 반납된 도서입니다.");
+            throw new InvalidRequestException(
+                messageUtils.getMessageWithDefault("rental.already.returned", "Book is already returned"));
         }
     }
 
