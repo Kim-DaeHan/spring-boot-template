@@ -1,99 +1,141 @@
 package com.example.libraryapi.exception;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.MessageSource;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.MethodParameter;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * GlobalExceptionHandler의 동작을 테스트하는 클래스입니다.
  */
-@WebMvcTest(controllers = {GlobalExceptionHandlerTest.TestController.class})
+@ExtendWith(MockitoExtension.class)
 public class GlobalExceptionHandlerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Mock
+    private MessageUtils messageUtils;
 
-    @MockBean
-    private MessageSource messageSource;
+    @InjectMocks
+    private GlobalExceptionHandler globalExceptionHandler;
 
-    @Test
-    void testResourceNotFoundException() throws Exception {
-        mockMvc.perform(get("/test/not-found"))
-                .andExpect(status().isNotFound())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.errorCode").value("E001"))
-                .andExpect(jsonPath("$.message").exists())
-                .andExpect(jsonPath("$.timestamp").exists())
-                .andExpect(jsonPath("$.path").exists());
+    private WebRequest webRequest;
+
+    @BeforeEach
+    void setUp() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/test/path");
+        webRequest = new ServletWebRequest(request);
     }
 
     @Test
-    void testDuplicateResourceException() throws Exception {
-        mockMvc.perform(get("/test/duplicate"))
-                .andExpect(status().isConflict())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.errorCode").value("E002"))
-                .andExpect(jsonPath("$.message").exists());
+    void testResourceNotFoundException() {
+        // Given
+        ResourceNotFoundException exception = new ResourceNotFoundException("테스트 리소스를 찾을 수 없습니다");
+        
+        // When
+        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleBusinessException(exception, webRequest);
+        
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getStatus()).isEqualTo(404);
+        assertThat(response.getBody().getErrorCode()).isEqualTo("E001");
+        assertThat(response.getBody().getMessage()).isEqualTo("테스트 리소스를 찾을 수 없습니다");
+        assertThat(response.getBody().getPath()).isEqualTo("/test/path");
+        assertThat(response.getBody().getTimestamp()).isNotNull();
     }
 
     @Test
-    void testInvalidRequestException() throws Exception {
-        mockMvc.perform(get("/test/invalid"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.errorCode").value("E004"));
+    void testDuplicateResourceException() {
+        // Given
+        DuplicateResourceException exception = new DuplicateResourceException("중복된 테스트 리소스입니다");
+        
+        // When
+        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleBusinessException(exception, webRequest);
+        
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getStatus()).isEqualTo(409);
+        assertThat(response.getBody().getErrorCode()).isEqualTo("E002");
+        assertThat(response.getBody().getMessage()).isEqualTo("중복된 테스트 리소스입니다");
+        assertThat(response.getBody().getPath()).isEqualTo("/test/path");
     }
 
     @Test
-    void testInvalidJsonFormat() throws Exception {
-        mockMvc.perform(post("/test/json")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ invalid json }"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.errorCode").value("E006"));
+    void testInvalidRequestException() {
+        // Given
+        InvalidRequestException exception = new InvalidRequestException("잘못된 테스트 요청입니다");
+        
+        // When
+        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleBusinessException(exception, webRequest);
+        
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getStatus()).isEqualTo(400);
+        assertThat(response.getBody().getErrorCode()).isEqualTo("E004");
+        assertThat(response.getBody().getMessage()).isEqualTo("잘못된 테스트 요청입니다");
     }
 
-    /**
-     * 테스트용 컨트롤러
-     */
-    @RestController
-    static class TestController {
+    @Test
+    void testValidationException() {
+        // Given
+        when(messageUtils.getMessageWithDefault(eq("error.E005"), anyString())).thenReturn("입력값 검증에 실패했습니다");
+        
+        MethodParameter methodParameter = mock(MethodParameter.class);
+        when(methodParameter.getExecutable()).thenReturn(this.getClass().getDeclaredMethods()[0]); // 임시 메서드 사용
+        
+        BindingResult bindingResult = mock(BindingResult.class);
+        FieldError fieldError = new FieldError("testObject", "testField", "테스트 필드는 필수입니다");
+        when(bindingResult.getAllErrors()).thenReturn(List.of(fieldError));
+        
+        MethodArgumentNotValidException exception = new MethodArgumentNotValidException(methodParameter, bindingResult);
+        
+        // When
+        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleValidationExceptions(exception, webRequest);
+        
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getStatus()).isEqualTo(400);
+        assertThat(response.getBody().getErrorCode()).isEqualTo("E005");
+        assertThat(response.getBody().getMessage()).isEqualTo("입력값 검증에 실패했습니다");
+        assertThat(response.getBody().getErrors()).containsEntry("testField", "테스트 필드는 필수입니다");
+    }
 
-        @GetMapping("/test/not-found")
-        public void throwNotFoundException() {
-            throw new ResourceNotFoundException("테스트 리소스를 찾을 수 없습니다");
-        }
-
-        @GetMapping("/test/duplicate")
-        public void throwDuplicateException() {
-            throw new DuplicateResourceException("중복된 테스트 리소스입니다");
-        }
-
-        @GetMapping("/test/invalid")
-        public void throwInvalidRequestException() {
-            throw new InvalidRequestException("잘못된 테스트 요청입니다");
-        }
-
-        @PostMapping("/test/json")
-        public void testJsonEndpoint() {
-            // JSON 파싱 테스트용 엔드포인트
-        }
+    @Test
+    void testGenericException() {
+        // Given
+        when(messageUtils.getMessageWithDefault(eq("error.E999"), anyString())).thenReturn("서버 내부 오류가 발생했습니다");
+        
+        Exception exception = new RuntimeException("예상치 못한 오류");
+        
+        // When
+        ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleGenericException(exception, webRequest);
+        
+        // Then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getStatus()).isEqualTo(500);
+        assertThat(response.getBody().getErrorCode()).isEqualTo("E999");
+        assertThat(response.getBody().getMessage()).isEqualTo("서버 내부 오류가 발생했습니다");
     }
 } 

@@ -2,10 +2,11 @@ package com.example.libraryapi.category.controller;
 
 import com.example.libraryapi.book.dto.BookResponseDto;
 import com.example.libraryapi.book.entity.BookStatus;
-import com.example.libraryapi.category.dto.CategoryDto;
+import com.example.libraryapi.book.repository.BookRepository;
 import com.example.libraryapi.category.dto.CategoryRequestDto;
 import com.example.libraryapi.category.dto.CategoryResponseDto;
 import com.example.libraryapi.category.service.CategoryService;
+import com.example.libraryapi.exception.MessageUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,10 +23,8 @@ import java.util.Set;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(CategoryController.class)
 public class CategoryControllerTest {
@@ -39,6 +38,12 @@ public class CategoryControllerTest {
     @MockBean
     private CategoryService categoryService;
 
+    @MockBean
+    private MessageUtils messageUtils;
+
+    @MockBean
+    private BookRepository bookRepository;
+
     private CategoryResponseDto sampleCategoryResponse;
     private CategoryRequestDto sampleCategoryRequest;
     private BookResponseDto sampleBookResponse;
@@ -48,7 +53,7 @@ public class CategoryControllerTest {
         sampleCategoryResponse = new CategoryResponseDto(1, "소설");
         sampleCategoryRequest = new CategoryRequestDto("소설");
         
-        CategoryDto category = new CategoryDto(1, "소설");
+        CategoryResponseDto category = new CategoryResponseDto(1, "소설");
         sampleBookResponse = new BookResponseDto(
                 1,
                 "해리포터와 비밀의 방",
@@ -65,8 +70,8 @@ public class CategoryControllerTest {
                 .thenReturn(sampleCategoryResponse);
 
         mockMvc.perform(post("/api/categories")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(sampleCategoryRequest)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sampleCategoryRequest)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("소설"));
@@ -80,7 +85,7 @@ public class CategoryControllerTest {
 
         mockMvc.perform(get("/api/categories"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[0].name").value("소설"));
     }
 

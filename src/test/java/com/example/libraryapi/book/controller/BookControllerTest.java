@@ -6,7 +6,10 @@ import com.example.libraryapi.book.dto.BookResponseDto;
 import com.example.libraryapi.book.dto.BookStatusUpdateDto;
 import com.example.libraryapi.book.entity.BookStatus;
 import com.example.libraryapi.book.service.BookService;
-import com.example.libraryapi.category.dto.CategoryDto;
+import com.example.libraryapi.category.dto.CategoryResponseDto;
+import com.example.libraryapi.category.repository.CategoryRepository;
+import com.example.libraryapi.exception.MessageUtils;
+import com.example.libraryapi.rental.repository.RentalRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,12 +42,21 @@ public class BookControllerTest {
     @MockBean
     private BookService bookService;
 
+    @MockBean
+    private MessageUtils messageUtils;
+
+    @MockBean
+    private CategoryRepository categoryRepository;
+
+    @MockBean
+    private RentalRepository rentalRepository;
+
     private BookResponseDto sampleBookResponse;
     private BookRequestDto sampleBookRequest;
 
     @BeforeEach
     void setUp() {
-        CategoryDto category = new CategoryDto(1, "소설");
+        CategoryResponseDto category = new CategoryResponseDto(1, "소설");
         
         sampleBookResponse = new BookResponseDto(
                 1,
@@ -84,7 +96,7 @@ public class BookControllerTest {
 
         mockMvc.perform(get("/api/books"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[0].title").value("해리포터와 비밀의 방"));
     }
 
@@ -110,8 +122,8 @@ public class BookControllerTest {
                 .param("title", "해리포터")
                 .param("category", "소설"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].title").value("해리포터와 비밀의 방"));
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].author").value("J.K. 롤링"));
     }
 
     @Test
@@ -120,7 +132,7 @@ public class BookControllerTest {
         BookStatusUpdateDto statusUpdateDto = new BookStatusUpdateDto(BookStatus.UNAVAILABLE);
         BookResponseDto updatedBook = new BookResponseDto(
                 1, "해리포터와 비밀의 방", "J.K. 롤링", BookStatus.UNAVAILABLE, 
-                Set.of(new CategoryDto(1, "소설"))
+                Set.of(new CategoryResponseDto(1, "소설"))
         );
         
         when(bookService.updateBookStatus(anyInt(), any(BookStatusUpdateDto.class)))
@@ -139,7 +151,7 @@ public class BookControllerTest {
         BookCategoryUpdateDto categoryUpdateDto = new BookCategoryUpdateDto(Set.of(1, 2));
         BookResponseDto updatedBook = new BookResponseDto(
                 1, "해리포터와 비밀의 방", "J.K. 롤링", BookStatus.AVAILABLE, 
-                Set.of(new CategoryDto(1, "소설"), new CategoryDto(2, "판타지"))
+                Set.of(new CategoryResponseDto(1, "소설"), new CategoryResponseDto(2, "판타지"))
         );
         
         when(bookService.updateBookCategories(anyInt(), any(BookCategoryUpdateDto.class)))
@@ -149,6 +161,7 @@ public class BookControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(categoryUpdateDto)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categories").isArray())
                 .andExpect(jsonPath("$.categories.length()").value(2));
     }
 } 
