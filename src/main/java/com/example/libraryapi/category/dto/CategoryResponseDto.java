@@ -12,6 +12,7 @@ public record CategoryResponseDto(
 		@Schema(description = "카테고리 ID", example = "1") Integer id,
 
 		@Schema(description = "카테고리 이름", example = "문학") String name) {
+
 	/**
 	 * Category 엔티티로부터 CategoryResponseDto를 생성합니다.
 	 */
